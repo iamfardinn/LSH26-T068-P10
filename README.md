@@ -4,13 +4,11 @@ Solution for **LofiStack Hackathon 2026 — P10**
 
 ## Project information
 
-- **Team:** `Unified` <!-- TODO -->
-- **Team ID:** `LSH26-T068` <!-- TODO -->
+- **Team:** `Unified` 
+- **Team ID:** `LSH26-T068`
 - **Problem:** `P10 — Prepaid Meter Recharge Advisor`
-- **Live application:** <https://example.com> <!-- TODO: replace with the deployed URL -->
-- **Demo video:** Optional link, maximum three minutes <!-- TODO or delete this line if not supplied -->
-
-> Judges will evaluate only the exact commit SHA entered in the Final Submission Form.
+- **Live application:** [https://euphonious-concha-af046f.netlify.app/](https://euphonious-concha-af046f.netlify.app/) 
+- **Demo video:** https://drive.google.com/drive/folders/1akv54x4f3BEU1P-ojMxgQi5iD4V_ZlRx?usp=drive_link
 
 ## Solution summary
 
@@ -73,8 +71,8 @@ always returns to the bundled sample.
 ### Setup
 
 ```bash
-git clone <PUBLIC-REPOSITORY-URL>
-cd lsh26-t###-p10
+git clone https://github.com/iamfardinn/LSH26-T068-P10.git
+cd lsh26-t068-p10
 npm install
 npm run dev
 ```
@@ -129,7 +127,7 @@ No `.env` file or secrets are required anywhere in this project.
 - **Frontend:** React 19 + TypeScript, Vite, Tailwind CSS v4, Recharts, lucide-react
 - **Backend:** None — static single-page application
 - **Database:** None — the sample case is bundled in source; a loaded case lives only in browser memory for that session
-- **Deployment:** Any static host (e.g. Vercel, Netlify, GitHub Pages) serving `npm run build`'s `dist/` output <!-- TODO: name the actual provider used -->
+- **Deployment:** Any static host (e.g. Vercel, Netlify, GitHub Pages) serving `npm run build`'s `dist/` output 
 - **Other material tools:** Vitest (57 tests), oxlint
 
 See [`LICENSES.md`](LICENSES.md) for third-party materials.
@@ -138,10 +136,11 @@ See [`LICENSES.md`](LICENSES.md) for third-party materials.
 
 | Registered member | GitHub username | Major contribution | Evidence |
 |---|---|---|---|
-| `<Name>` | `<username>` | `<Contribution>` | File, feature or commit |
-| `<Name>` | `<username>` | `<Contribution>` | File, feature or commit |
+| `Tonmoy Sarker Sourav` | `tonmoy-y` | `Build Core Logic2` | Push files |
+| `Tonmoy Shaha` | `tonmoy6052` | `Testing` | Find Edge Cases |
+| `Mohammad Muaz` | `mojo-vai` | `Testing` | Find Edge Cases |
+| `Fardin` | `iamfardinn` | `Testing` | Find Edge Cases |
 
-<!-- TODO: fill in real team members and contributions before submitting -->
 
 Commit count alone does not represent contribution.
 
