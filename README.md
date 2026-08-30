@@ -7,7 +7,7 @@ Solution for **LofiStack Hackathon 2026 — P10**
 - **Team:** `Unified` 
 - **Team ID:** `LSH26-T068`
 - **Problem:** `P10 — Prepaid Meter Recharge Advisor`
-- **Live application:** [https://euphonious-concha-af046f.netlify.app/](https://euphonious-concha-af046f.netlify.app/) 
+- **Live application:** [https://meter-sense.netlify.app/](https://meter-sense.netlify.app/) 
 - **Demo video:** https://drive.google.com/drive/folders/1akv54x4f3BEU1P-ojMxgQi5iD4V_ZlRx?usp=drive_link
 
 ## Solution summary
