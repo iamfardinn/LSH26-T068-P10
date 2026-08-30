@@ -77,6 +77,34 @@ describe('parseCaseObject', () => {
     expect(r.household?.recharges).toEqual([]);
   });
 
+  it('REGRESSION: rejects a non-consecutive "days" array instead of silently mis-dating every day after the gap', () => {
+    const bad = validCase({
+      days: [
+        { date: '2026-01-01', units: 5 },
+        { date: '2026-01-03', units: 6 }, // gap: skips 2026-01-02
+      ],
+    });
+    const r = parseCaseObject(bad);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => e.includes('consecutive'))).toBe(true);
+  });
+
+  it('REGRESSION: rejects a recharge dated outside the loaded "days" range instead of silently dropping it', () => {
+    const bad = validCase({
+      recharges: [{ date: '2026-05-01', amount_bdt: '300.00' }], // days only cover 2026-01-01/02
+    });
+    const r = parseCaseObject(bad);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => e.includes('outside the loaded'))).toBe(true);
+  });
+
+  it('REGRESSION: rejects a negative recharge amount instead of silently treating it as a no-op', () => {
+    const bad = validCase({ recharges: [{ date: '2026-01-01', amount_bdt: '-50.00' }] });
+    const r = parseCaseObject(bad);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => e.includes('must not be negative'))).toBe(true);
+  });
+
   it('parses the comparison.source / daily_units synthetic-mode fields through', () => {
     const r = parseCaseObject(
       validCase({ comparison: { ...validCase().comparison, source: 'fixed', daily_units: 12 } })

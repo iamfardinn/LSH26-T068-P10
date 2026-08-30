@@ -16,8 +16,16 @@
  */
 
 import { energyForUnits, vatOn, FIXED_CHARGES, SLABS } from './tariff';
-import { monthKey, addDays, allDatesInMonth } from './dates';
+import { monthKey, addDays, allDatesInMonth, daysBetween } from './dates';
 import type { Household, Recharge } from './data';
+
+/** forecastTopUp walks one day at a time; a target date thousands of
+ *  years out would otherwise loop millions of times synchronously and
+ *  freeze the tab (measured: ~2.9M iterations, ~3s of date math alone,
+ *  before the per-day energy calculation even runs). Capped at the same
+ *  10-year horizon as forecastRunOut, checked up front with daysBetween
+ *  so an absurd date is rejected instantly instead of after the hang. */
+const MAX_FORECAST_DAYS = 3650;
 
 export interface Day {
   date: string;
@@ -165,6 +173,13 @@ export function forecastTopUp(household: Household, ledger: LedgerRow[], targetD
   const today = household.today;
   if (!(targetDate > today)) {
     return { invalid: true, reason: 'Target date must be after today (' + today + ').' };
+  }
+  const daySpan = daysBetween(today, targetDate);
+  if (daySpan > MAX_FORECAST_DAYS) {
+    return {
+      invalid: true,
+      reason: `Target date is ${daySpan.toLocaleString()} days away — please pick a date within ${MAX_FORECAST_DAYS.toLocaleString()} days (about 10 years) of today.`,
+    };
   }
   const todayRow = ledger[ledger.length - 1];
   const todayMonth = monthKey(today);

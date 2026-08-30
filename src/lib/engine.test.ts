@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FIXED_CHARGES } from './tariff';
+import { addDays as addDaysForTest } from './dates';
 import {
   rebuildLedger,
   forecastRunOut,
@@ -141,6 +142,25 @@ describe('engine: forecastTopUp', () => {
     const r = forecastTopUp(household, ledger, '2026-06-20');
     expect(r.fixed).toBe(FIXED_CHARGES);
     expect(r.rechargeIsFirstOfMonth).toBe(true);
+  });
+
+  it('REGRESSION: rejects a target date thousands of years out instead of hanging in an unbounded day-by-day loop', () => {
+    const household = { today: '2026-06-30', usualDailyUnits: 19, recharges: [] } as unknown as Household;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0 }] as any;
+    const start = Date.now();
+    const r = forecastTopUp(household, ledger, '9999-12-31');
+    expect(Date.now() - start).toBeLessThan(500); // must reject instantly, not walk ~2.9M days
+    expect(r.invalid).toBe(true);
+    expect(r.reason).toMatch(/10 years/);
+  });
+
+  it('accepts a target date right at the 10-year cap and rejects one day past it', () => {
+    const household = { today: '2026-01-01', usualDailyUnits: 5, recharges: [] } as unknown as Household;
+    const ledger = [{ date: '2026-01-01', monthCumulative: 0 }] as any;
+    const atCap = forecastTopUp(household, ledger, addDaysForTest('2026-01-01', 3650));
+    const overCap = forecastTopUp(household, ledger, addDaysForTest('2026-01-01', 3651));
+    expect(atCap.invalid).toBe(false);
+    expect(overCap.invalid).toBe(true);
   });
 });
 

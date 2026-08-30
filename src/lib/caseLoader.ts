@@ -17,6 +17,7 @@
  */
 
 import type { Household, Recharge } from './data';
+import { addDays } from './dates';
 
 export interface CaseLoadResult {
   ok: boolean;
@@ -83,6 +84,20 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
         } else {
           daysStart = day.date;
         }
+      } else if (daysStart) {
+        // Every day's own date must actually be consecutive from the
+        // first one. Without this check, a gap, a duplicate, or an
+        // out-of-order date in the source data is silently ignored —
+        // the ledger is built purely by array position — and every
+        // date after the gap ends up mismatched against its real
+        // calendar date, so a recharge dated for the real day 5 can
+        // silently land on what the ledger thinks is day 4 or 6.
+        const expected = addDays(daysStart, i);
+        if (isDateString(day.date) && day.date !== expected) {
+          errors.push(
+            `days[${i}].date is "${day.date}" but should be ${expected} — "days" must be consecutive calendar days starting from days[0].date, with no gaps, duplicates, or out-of-order entries.`
+          );
+        }
       }
       const units = typeof day.units === 'number' ? day.units : NaN;
       if (!Number.isFinite(units) || units < 0) {
@@ -91,6 +106,14 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
         dailyUnits.push(units);
       }
     });
+  }
+
+  // Computed here (not just at the end) so the recharges loop below can
+  // reject a recharge dated outside the loaded days — otherwise such a
+  // recharge is silently never applied anywhere, with no error at all.
+  let daysEnd = '';
+  if (daysStart && dailyUnits.length > 0) {
+    daysEnd = addDays(daysStart, dailyUnits.length - 1);
   }
 
   const recharges: Recharge[] = [];
@@ -108,8 +131,26 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
           errors.push(`recharges[${i}].date must be a YYYY-MM-DD string, got: ${JSON.stringify(rec.date)}`);
           return;
         }
+        if (daysStart && daysEnd && (rec.date < daysStart || rec.date > daysEnd)) {
+          // A recharge dated outside the loaded range can never match a
+          // ledger row and would previously just vanish with no error —
+          // the balance would be silently short by that exact amount.
+          errors.push(
+            `recharges[${i}].date (${rec.date}) is outside the loaded "days" range (${daysStart} to ${daysEnd}) — it could never be applied.`
+          );
+          return;
+        }
         const amount = toNumber(rec.amount_bdt, `recharges[${i}].amount_bdt`, errors);
-        if (Number.isFinite(amount)) recharges.push({ date: rec.date, amount });
+        if (Number.isFinite(amount) && amount < 0) {
+          // A negative recharge is not "an error the amount is wrong by
+          // sign" in the ledger — rebuildLedger only applies a recharge
+          // when it's > 0, so a negative one is currently just silently
+          // skipped (no balance change, no fixed charge, no error). That
+          // silent no-op is worse than rejecting it up front.
+          errors.push(`recharges[${i}].amount_bdt must not be negative, got: ${JSON.stringify(rec.amount_bdt)}`);
+        } else if (Number.isFinite(amount)) {
+          recharges.push({ date: rec.date, amount });
+        }
       });
     }
   }
@@ -163,9 +204,6 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
   // One more cross-field check that only makes sense once everything
   // above has already parsed cleanly: "today" has to actually be one of
   // the loaded days, or every downstream calculation silently breaks.
-  const lastDay = new Date(daysStart + 'T00:00:00Z');
-  lastDay.setUTCDate(lastDay.getUTCDate() + dailyUnits.length - 1);
-  const daysEnd = lastDay.toISOString().slice(0, 10);
   if (household.today < daysStart || household.today > daysEnd) {
     return {
       ok: false,
