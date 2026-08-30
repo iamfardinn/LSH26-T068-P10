@@ -3,10 +3,11 @@
 - **Team ID:** `LSH26-T068` 
 - **Problem ID:** `P10`
 - **Repository:** `lsh26-t068-p10` 
-- **Event start code:** `LSH26-8490-C900` - **Repository created before release:** No 
+- **Event start code:** `LSH26-8490-C900` 
+- **Repository created before release:** No 
 
 ## Material present before 6:00 PM
-
+ 
 List every scaffold, template, configuration, asset or file already
 present before the event started. Write `None` if the repository was
 empty.
