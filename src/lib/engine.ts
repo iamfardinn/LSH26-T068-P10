@@ -161,6 +161,10 @@ export interface TopUpResult {
   total?: number;
   rechargeIsFirstOfMonth?: boolean;
   totalUnits?: number;
+  /** The balance already on the meter today, before any new recharge —
+   *  exposed so a caller can show "gross period cost" vs "net amount
+   *  actually due" if it wants to, though `total` below is already net. */
+  currentBalance?: number;
 }
 
 /**
@@ -168,6 +172,16 @@ export interface TopUpResult {
  * Walks day by day from the day after `today` through `targetDate`
  * (inclusive), summing the true slab-weighted energy cost, then
  * decomposes it into base energy / higher-slab premium / fixed / VAT.
+ *
+ * The amount actually due today is that period's gross cost MINUS the
+ * balance already sitting on the meter, floored at zero — recharging
+ * is topping up a balance, not replacing it. (Bug fixed here: an
+ * earlier version returned the gross period cost with the existing
+ * balance never subtracted, so a case with plenty of balance left
+ * would still demand a full new recharge — sometimes contradicting its
+ * own run-out date, which already accounted for that same balance.)
+ * The four breakdown figures are scaled down by the same ratio so they
+ * still sum exactly to the net `total`, rather than to the gross cost.
  */
 export function forecastTopUp(household: Household, ledger: LedgerRow[], targetDate: string): TopUpResult {
   const today = household.today;
@@ -182,6 +196,7 @@ export function forecastTopUp(household: Household, ledger: LedgerRow[], targetD
     };
   }
   const todayRow = ledger[ledger.length - 1];
+  const currentBalance = todayRow.balanceAfter;
   const todayMonth = monthKey(today);
   // <= (not <): a recharge that already happened ON today itself still
   // means a NEW hypothetical top-up today would not be the month's first.
@@ -209,13 +224,29 @@ export function forecastTopUp(household: Household, ledger: LedgerRow[], targetD
     totalUnits += units;
   }
 
-  const baseEnergy = totalUnits * SLABS[0].rate;
-  const slabPremium = actualEnergy - baseEnergy;
-  const vat = vatOn(actualEnergy);
-  const fixed = rechargeIsFirstOfMonth ? FIXED_CHARGES : 0;
-  const total = actualEnergy + vat + fixed;
+  const grossBaseEnergy = totalUnits * SLABS[0].rate;
+  const grossSlabPremium = actualEnergy - grossBaseEnergy;
+  const grossVat = vatOn(actualEnergy);
+  const grossFixed = rechargeIsFirstOfMonth ? FIXED_CHARGES : 0;
+  const grossTotal = actualEnergy + grossVat + grossFixed;
 
-  return { invalid: false, baseEnergy, slabPremium, vat, fixed, total, rechargeIsFirstOfMonth, totalUnits };
+  const total = Math.max(0, grossTotal - currentBalance);
+  // Same proportion of each component as the gross bill had, so the
+  // four bars still add up to `total` exactly (not to grossTotal) and
+  // a balance that fully covers the period correctly zeroes all four.
+  const scale = grossTotal > 0 ? total / grossTotal : 0;
+
+  return {
+    invalid: false,
+    baseEnergy: grossBaseEnergy * scale,
+    slabPremium: grossSlabPremium * scale,
+    vat: grossVat * scale,
+    fixed: grossFixed * scale,
+    total,
+    rechargeIsFirstOfMonth,
+    totalUnits,
+    currentBalance,
+  };
 }
 
 export interface HabitParams {
@@ -327,7 +358,7 @@ export function runComparison(household: Household): ComparisonResult {
     commonDays = allDays.filter((d) => months.includes(monthKey(d.date)));
     for (const m of months) {
       if (!commonDays.some((d) => monthKey(d.date) === m)) {
-        throw new Error('runComparison: no readings found for comparison month ' + m);
+        throw new Error('There are no readings found for comparison month ' + m + ' in this case\'s data.');
       }
     }
   } else {

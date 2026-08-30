@@ -106,13 +106,13 @@ describe('engine: forecastTopUp', () => {
     }) as Household;
 
   it('rejects a target date on/before today instead of returning a silent ৳0', () => {
-    const ledger = [{ date: '2026-06-30', monthCumulative: 100 }] as any;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 100, balanceAfter: 0 }] as any;
     expect(forecastTopUp(baseHousehold(), ledger, '2026-06-30').invalid).toBe(true);
     expect(forecastTopUp(baseHousehold(), ledger, '2026-01-01').invalid).toBe(true);
   });
 
   it('base + slabPremium + fixed + VAT reconciles exactly to total', () => {
-    const ledger = [{ date: '2026-06-30', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 0 }] as any;
     const r = forecastTopUp(baseHousehold(), ledger, '2026-07-15');
     const recombined = r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat!;
     expect(recombined).toBeCloseTo(r.total!, 6);
@@ -120,7 +120,7 @@ describe('engine: forecastTopUp', () => {
 
   it('fixed charge is 0 if the household already recharged this month before "today"', () => {
     const household = baseHousehold([{ date: '2026-06-05', amount: 500 }]);
-    const ledger = [{ date: '2026-06-30', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 0 }] as any;
     const r = forecastTopUp(household, ledger, '2026-07-10');
     expect(r.fixed).toBe(0);
     expect(r.rechargeIsFirstOfMonth).toBe(false);
@@ -130,7 +130,7 @@ describe('engine: forecastTopUp', () => {
     // This exact case was a real bug found during tough-judge review of the
     // pre-migration build: the old `<` check missed a same-day recharge.
     const household = baseHousehold([{ date: '2026-06-30', amount: 500 }]);
-    const ledger = [{ date: '2026-06-30', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 0 }] as any;
     const r = forecastTopUp(household, ledger, '2026-07-10');
     expect(r.fixed).toBe(0);
     expect(r.rechargeIsFirstOfMonth).toBe(false);
@@ -138,7 +138,7 @@ describe('engine: forecastTopUp', () => {
 
   it('fixed charge IS included if today would be the first recharge of its month', () => {
     const household = { today: '2026-06-05', usualDailyUnits: 19, recharges: [] } as unknown as Household;
-    const ledger = [{ date: '2026-06-05', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-06-05', monthCumulative: 0, balanceAfter: 0 }] as any;
     const r = forecastTopUp(household, ledger, '2026-06-20');
     expect(r.fixed).toBe(FIXED_CHARGES);
     expect(r.rechargeIsFirstOfMonth).toBe(true);
@@ -146,7 +146,7 @@ describe('engine: forecastTopUp', () => {
 
   it('REGRESSION: rejects a target date thousands of years out instead of hanging in an unbounded day-by-day loop', () => {
     const household = { today: '2026-06-30', usualDailyUnits: 19, recharges: [] } as unknown as Household;
-    const ledger = [{ date: '2026-06-30', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 0 }] as any;
     const start = Date.now();
     const r = forecastTopUp(household, ledger, '9999-12-31');
     expect(Date.now() - start).toBeLessThan(500); // must reject instantly, not walk ~2.9M days
@@ -156,7 +156,7 @@ describe('engine: forecastTopUp', () => {
 
   it('accepts a target date right at the 10-year cap and rejects one day past it', () => {
     const household = { today: '2026-01-01', usualDailyUnits: 5, recharges: [] } as unknown as Household;
-    const ledger = [{ date: '2026-01-01', monthCumulative: 0 }] as any;
+    const ledger = [{ date: '2026-01-01', monthCumulative: 0, balanceAfter: 0 }] as any;
     const atCap = forecastTopUp(household, ledger, addDaysForTest('2026-01-01', 3650));
     const overCap = forecastTopUp(household, ledger, addDaysForTest('2026-01-01', 3651));
     expect(atCap.invalid).toBe(false);
