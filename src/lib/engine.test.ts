@@ -8,6 +8,7 @@ import {
   simulateHabit,
   runComparison,
   buildDayList,
+  parsePastedHistory,
 } from './engine';
 import type { Household } from './data';
 
@@ -111,11 +112,34 @@ describe('engine: forecastTopUp', () => {
     expect(forecastTopUp(baseHousehold(), ledger, '2026-01-01').invalid).toBe(true);
   });
 
-  it('base + slabPremium + fixed + VAT reconciles exactly to total', () => {
+  it('base + slabPremium + fixed + VAT minus the balance credit reconciles exactly to total', () => {
     const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 0 }] as any;
     const r = forecastTopUp(baseHousehold(), ledger, '2026-07-15');
-    const recombined = r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat!;
+    const recombined = r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat! - r.balanceCredit!;
     expect(recombined).toBeCloseTo(r.total!, 6);
+  });
+
+  it('REGRESSION: the fixed charge is never pro-rated — it is 82.00 in full or 0', () => {
+    // Found in live QA: the first cut of the balance-deduction fix scaled
+    // every component by net/gross, so a case whose balance covered most
+    // of the period rendered "Fixed charges (demand + rent) ৳4.50" — a
+    // number that exists nowhere in the tariff. The meter takes ৳42 + ৳40
+    // or nothing; there is no such thing as a fraction of it.
+    const household = { today: '2026-06-30', usualDailyUnits: 10, recharges: [] } as unknown as Household;
+    // A balance that covers all but a sliver of the period.
+    const ledger = [{ date: '2026-06-30', monthCumulative: 300, balanceAfter: 1353.86 }] as any;
+    const r = forecastTopUp(household, ledger, '2026-07-25');
+    expect(r.fixed).toBe(FIXED_CHARGES);
+    expect(r.total).toBeCloseTo(78.70, 2);
+    expect(r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat! - r.balanceCredit!).toBeCloseTo(r.total!, 6);
+  });
+
+  it('a balance larger than the whole period is credited only up to the gross, so total is exactly 0', () => {
+    const household = { today: '2026-06-30', usualDailyUnits: 1, recharges: [] } as unknown as Household;
+    const ledger = [{ date: '2026-06-30', monthCumulative: 0, balanceAfter: 999999 }] as any;
+    const r = forecastTopUp(household, ledger, '2026-07-02');
+    expect(r.total).toBe(0);
+    expect(r.balanceCredit).toBeCloseTo(r.grossTotal!, 6);
   });
 
   it('fixed charge is 0 if the household already recharged this month before "today"', () => {
@@ -226,5 +250,30 @@ describe('engine: simulateHabit / runComparison (R-16 / R-33)', () => {
     // monthly habit always recharges exactly once for a single-month run
     expect(monthly.rechargeCount).toBe(1);
     expect(low.totalEnergyVat).toBeCloseTo(monthly.totalEnergyVat, 6);
+  });
+});
+describe('engine: parsePastedHistory date validation', () => {
+  it('REGRESSION: rejects a well-shaped but impossible calendar date', () => {
+    // Found in live QA: "2026-13-45" passed the YYYY-MM-DD shape check,
+    // reported no error, rendered as "Invalid Date" in the comparison
+    // table, and still had its ৳500 recharge folded into the rebuilt
+    // balance.
+    const r = parsePastedHistory('2026-13-45, 500, 300');
+    expect(r.recharges).toHaveLength(0);
+    expect(r.actualBalances).toHaveLength(0);
+    expect(r.errors).toHaveLength(1);
+    expect(r.errors[0]).toMatch(/not a real calendar date/);
+  });
+
+  it('rejects a day that does not exist in that month rather than rolling it over', () => {
+    const r = parsePastedHistory('2026-02-30, , 100');
+    expect(r.actualBalances).toHaveLength(0);
+    expect(r.errors).toHaveLength(1);
+  });
+
+  it('still accepts a real leap day', () => {
+    const r = parsePastedHistory('2028-02-29, , 100');
+    expect(r.errors).toHaveLength(0);
+    expect(r.actualBalances).toEqual([{ date: '2028-02-29', balance: 100 }]);
   });
 });

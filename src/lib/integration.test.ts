@@ -45,9 +45,10 @@ describe('integration: case PUB-01 (the shipped household)', () => {
     expect(r.currentBalance).toBeCloseTo(2080.97, 2);
     expect(r.total).toBeCloseTo(3355.73, 2);
     expect(r.fixed).toBe(0);
-    // The four components still sum exactly to the net total, scaled
-    // down from the gross breakdown by the same ratio.
-    const recombined = r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat!;
+    // The four components report the period's real cost; the balance
+    // already on the meter is a separate, explicit credit line, so a
+    // reader can check the arithmetic by hand against the slab table.
+    const recombined = r.baseEnergy! + r.slabPremium! + r.fixed! + r.vat! - r.balanceCredit!;
     expect(recombined).toBeCloseTo(r.total!, 6);
   });
 
@@ -57,10 +58,10 @@ describe('integration: case PUB-01 (the shipped household)', () => {
     // 2026 is comfortably covered by today's balance already.
     const r = forecastTopUp(household, ledger, '2026-07-05');
     expect(r.total).toBe(0);
-    expect(r.baseEnergy).toBe(0);
-    expect(r.slabPremium).toBe(0);
-    expect(r.vat).toBe(0);
-    expect(r.fixed).toBe(0);
+    // Nothing is due, but the period still had a real cost, and the
+    // credit covers exactly that much — no more.
+    expect(r.grossTotal).toBeGreaterThan(0);
+    expect(r.balanceCredit).toBeCloseTo(r.grossTotal!, 6);
   });
 
   it('habit comparison: both habits cost ৳11,815.37 over Apr-Jun 2026', () => {

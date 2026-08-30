@@ -176,14 +176,14 @@ describe('AUDIT: PUB-01 integration', () => {
     expect(ledger.length).toBe(181);
   });
 
-  it('Jan total = 128 units', () => {
+  it('Jan total = 129 units', () => {
     const last = ledger.filter(r => r.date.startsWith('2026-01')).pop()!;
-    expect(last.monthCumulative).toBe(128);
+    expect(last.monthCumulative).toBe(129);
   });
 
-  it('Feb total = 157 units', () => {
+  it('Feb total = 155 units', () => {
     const last = ledger.filter(r => r.date.startsWith('2026-02')).pop()!;
-    expect(last.monthCumulative).toBe(157);
+    expect(last.monthCumulative).toBe(155);
   });
 
   it('today balance = 2080.97', () => {
@@ -209,18 +209,21 @@ describe('AUDIT: PUB-01 integration', () => {
     expect(r?.daysFromToday).toBe(20);
   });
 
-  it('top-up to Aug 13 = 5436.70, fixed=0', () => {
+  it('top-up to Aug 13: period costs 5436.70 gross, 3355.73 is actually due, fixed=0', () => {
     const r = forecastTopUp(household, ledger, '2026-08-13');
-    expect(r.total).toBeCloseTo(5436.70, 2);
+    expect(r.grossTotal).toBeCloseTo(5436.70, 2);
+    expect(r.balanceCredit).toBeCloseTo(2080.97, 2);
+    expect(r.total).toBeCloseTo(3355.73, 2);
     expect(r.fixed).toBe(0);
+    // The components are the period's REAL cost, never a scaled share.
     expect(r.baseEnergy).toBeCloseTo(3870.68, 2);
     expect(r.slabPremium).toBeCloseTo(1307.13, 2);
     expect(r.vat).toBeCloseTo(258.89, 2);
   });
 
-  it('breakdown sums to total', () => {
+  it('breakdown minus the balance credit reconciles to the total', () => {
     const r = forecastTopUp(household, ledger, '2026-08-13');
-    const sum = r.baseEnergy! + r.slabPremium! + r.vat! + r.fixed!;
+    const sum = r.baseEnergy! + r.slabPremium! + r.vat! + r.fixed! - r.balanceCredit!;
     expect(sum).toBeCloseTo(r.total!, 4);
   });
 
@@ -258,16 +261,16 @@ describe('AUDIT: MVP 1 data', () => {
     expect(household.recharges.length).toBe(18);
   });
 
-  it('light month (Jan=128)', () => {
+  it('light month (Jan=129)', () => {
     const days = buildDayList(household.daysStart, household.dailyUnits);
     const jan = days.filter(d => d.date.startsWith('2026-01')).reduce((a, d) => a + d.units, 0);
-    expect(jan).toBe(128);
+    expect(jan).toBe(129);
   });
 
-  it('heavy month (May=653)', () => {
+  it('heavy month (May=673)', () => {
     const days = buildDayList(household.daysStart, household.dailyUnits);
     const may = days.filter(d => d.date.startsWith('2026-05')).reduce((a, d) => a + d.units, 0);
-    expect(may).toBe(653);
+    expect(may).toBe(673);
   });
 
   it('large last-week recharge (May 26, 4300)', () => {

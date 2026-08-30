@@ -46,7 +46,8 @@ more or less than recharging a fixed amount on the 1st of every month.
    "Load this case." Every section on the page recalculates against it.
 4. **Expected result:** with the bundled sample data, the balance today
    reads ৳2,080.97, the run-out date reads 20 Jul 2026, the top-up to
-   13 Aug 2026 reads ৳5,436.70, and both recharge habits cost exactly
+   13 Aug 2026 reads ৳3,355.73 (the period costs ৳5,436.70 gross, less
+   the ৳2,080.97 already on the meter), and both recharge habits cost exactly
    ৳11,815.37 over Apr–Jun 2026 (a legitimate equal result — see
    `CLARIFICATIONS.md` R-16).
 
@@ -170,6 +171,23 @@ fixed before submission.
   reason: a malformed or unusually-shaped hidden case should produce a
   clear error message, not a wrong number or a blank page.
 
+## How the recharge advisor reports its number
+
+The "how much to recharge today" figure is the **net** amount due: the
+forecast period's real cost minus the balance already sitting on the
+meter, floored at zero. The four components shown above it — energy at
+the lowest slab, the extra caused by being in a higher slab, fixed
+charges, and VAT — are the period's *actual* cost, never a scaled-down
+share of the net figure, because the ৳42 demand charge and ৳40 meter
+rent are indivisible: the meter takes them in full or not at all. The
+existing balance appears as its own explicit credit line, so the
+arithmetic can be checked by hand against the slab table:
+
+    energy + higher-slab extra + fixed charges + VAT − balance on meter = total
+
+If the balance already covers the chosen date, the total is ৳0.00 and
+the card says so — consistent with the run-out date shown beside it.
+
 ## Known limitations
 
 - The "check against your real meter" comparison flags a mismatch using
@@ -178,10 +196,11 @@ fixed before submission.
   output — its correctness was checked by inspecting the rendered SVG
   and real-browser screenshots during development, not an automated
   pixel-diff.
-- See `evaluation-manifest.json`'s `known_limitations` for the one real
-  bug found and fixed during development (an edge case in the top-up
-  calculator's "is this the month's first recharge" check), including
-  why it never affected the bundled sample's displayed numbers.
+- See `evaluation-manifest.json`'s `known_limitations` for every real
+  bug found and fixed before submission — each one is covered by a named
+  regression test, and the engine is additionally diffed against an
+  independent from-scratch re-implementation across all 25 published
+  cases (`src/lib/diff.test.ts` in the QA harness).
 
 ## Repository records
 

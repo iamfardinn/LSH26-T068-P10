@@ -10,6 +10,21 @@
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * True only for a real calendar date in YYYY-MM-DD form. The shape
+ * regex alone happily accepts "2026-13-45", which then flows onward as
+ * an Invalid Date — rendering literally as "Invalid Date" in a table
+ * and, worse, letting a recharge on a nonexistent day into a balance
+ * rebuild. Round-tripping through UTC catches both an out-of-range
+ * month/day and a rollover like "2026-02-30" -> 2 March.
+ */
+export function isValidDateString(d: unknown): d is string {
+  if (typeof d !== 'string' || !DATE_RE.test(d)) return false;
+  const dt = new Date(d + 'T00:00:00Z');
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt.toISOString().slice(0, 10) === d;
+}
+
 function assertDateString(d: string): void {
   if (typeof d !== 'string' || !DATE_RE.test(d)) {
     throw new TypeError('Expected a YYYY-MM-DD date string, got: ' + JSON.stringify(d));

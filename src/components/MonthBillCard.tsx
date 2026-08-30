@@ -7,7 +7,16 @@ import { fmt } from '../lib/format';
 
 export function MonthBillCard({ ledger }: { ledger: LedgerRow[] }) {
   const months = useMemo(() => [...new Set(ledger.map((r) => monthKey(r.date)))], [ledger]);
-  const [month, setMonth] = useState(months[Math.max(months.length - 2, 0)]);
+  const defaultMonth = months[Math.max(months.length - 2, 0)];
+  const [picked, setPicked] = useState(defaultMonth);
+  // Loading a different case swaps the ledger under us, and the month
+  // held in state may not exist in the new case at all — in which case
+  // the <select> silently shows its first option while this component
+  // still filters on the old key, producing an all-zero bill plus a
+  // "no recharge happened in this month" note that is simply false.
+  // Deriving the active month instead of trusting the stored one keeps
+  // the rendered figures and the visible dropdown in step.
+  const month = months.includes(picked) ? picked : defaultMonth;
 
   const rows = ledger.filter((r) => monthKey(r.date) === month);
   const energy = rows.reduce((a, r) => a + r.energy, 0);
@@ -32,7 +41,7 @@ export function MonthBillCard({ ledger }: { ledger: LedgerRow[] }) {
         </div>
         <select
           value={month}
-          onChange={(e) => setMonth(e.target.value)}
+          onChange={(e) => setPicked(e.target.value)}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-indigo-500 focus:ring-2 sm:w-56"
         >
           {months.map((m) => (

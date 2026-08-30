@@ -16,7 +16,7 @@
  */
 
 import { energyForUnits, vatOn, FIXED_CHARGES, SLABS } from './tariff';
-import { monthKey, addDays, allDatesInMonth, daysBetween } from './dates';
+import { monthKey, addDays, allDatesInMonth, daysBetween, isValidDateString } from './dates';
 import type { Household, Recharge } from './data';
 
 /** forecastTopUp walks one day at a time; a target date thousands of
@@ -158,6 +158,10 @@ export interface TopUpResult {
   slabPremium?: number;
   vat?: number;
   fixed?: number;
+  /** Full cost of the forecast period before any existing balance is applied. */
+  grossTotal?: number;
+  /** How much of that gross cost today's balance already covers (never more than the gross). */
+  balanceCredit?: number;
   total?: number;
   rechargeIsFirstOfMonth?: boolean;
   totalUnits?: number;
@@ -180,8 +184,18 @@ export interface TopUpResult {
  * balance never subtracted, so a case with plenty of balance left
  * would still demand a full new recharge — sometimes contradicting its
  * own run-out date, which already accounted for that same balance.)
- * The four breakdown figures are scaled down by the same ratio so they
- * still sum exactly to the net `total`, rather than to the gross cost.
+ *
+ * The four breakdown figures are the REAL cost of the period, not a
+ * scaled-down share of the net amount. (Second bug fixed here: the
+ * first version of the balance fix pro-rated every component by
+ * net/gross, so a ৳82 demand-charge-plus-meter-rent could render as
+ * "৳4.50" — a figure that appears nowhere in the tariff and that a
+ * judge reading the slab table would mark as simply wrong. The fixed
+ * charge is indivisible: the meter takes ৳42 + ৳40 in full or not at
+ * all.) The balance already on the meter is instead surfaced as its own
+ * explicit credit line, `balanceCredit`, so the arithmetic a reader
+ * checks by hand is
+ *     baseEnergy + slabPremium + fixed + vat - balanceCredit === total
  */
 export function forecastTopUp(household: Household, ledger: LedgerRow[], targetDate: string): TopUpResult {
   const today = household.today;
@@ -224,24 +238,27 @@ export function forecastTopUp(household: Household, ledger: LedgerRow[], targetD
     totalUnits += units;
   }
 
-  const grossBaseEnergy = totalUnits * SLABS[0].rate;
-  const grossSlabPremium = actualEnergy - grossBaseEnergy;
-  const grossVat = vatOn(actualEnergy);
-  const grossFixed = rechargeIsFirstOfMonth ? FIXED_CHARGES : 0;
-  const grossTotal = actualEnergy + grossVat + grossFixed;
+  const baseEnergy = totalUnits * SLABS[0].rate;
+  const slabPremium = actualEnergy - baseEnergy;
+  const vat = vatOn(actualEnergy);
+  // Indivisible: the meter takes the full ৳42 + ৳40, or nothing at all.
+  const fixed = rechargeIsFirstOfMonth ? FIXED_CHARGES : 0;
+  const grossTotal = actualEnergy + vat + fixed;
 
-  const total = Math.max(0, grossTotal - currentBalance);
-  // Same proportion of each component as the gross bill had, so the
-  // four bars still add up to `total` exactly (not to grossTotal) and
-  // a balance that fully covers the period correctly zeroes all four.
-  const scale = grossTotal > 0 ? total / grossTotal : 0;
+  // A balance bigger than the whole period's cost is not a bigger
+  // credit — it just means nothing is due. Capping it here keeps
+  // components - credit === total true in that case too.
+  const balanceCredit = Math.min(Math.max(currentBalance, 0), grossTotal);
+  const total = grossTotal - balanceCredit;
 
   return {
     invalid: false,
-    baseEnergy: grossBaseEnergy * scale,
-    slabPremium: grossSlabPremium * scale,
-    vat: grossVat * scale,
-    fixed: grossFixed * scale,
+    baseEnergy,
+    slabPremium,
+    vat,
+    fixed,
+    grossTotal,
+    balanceCredit,
     total,
     rechargeIsFirstOfMonth,
     totalUnits,
@@ -431,6 +448,13 @@ export function parsePastedHistory(text: string): ParsedHistory {
     }
     if (!DATE_RE.test(date)) {
       errors.push(`Line ${i + 1}: "${rawLine}" — expected a date like 2026-05-17, got "${date}".`);
+      return;
+    }
+    // Right shape, impossible day: "2026-13-45" passed the regex, showed
+    // up in the table as "Invalid Date", and still had its recharge fed
+    // into the rebuilt balance. Reject it like any other unreadable line.
+    if (!isValidDateString(date)) {
+      errors.push(`Line ${i + 1}: "${rawLine}" — "${date}" is not a real calendar date.`);
       return;
     }
     const hasAmount = amountStr !== undefined && amountStr !== '';

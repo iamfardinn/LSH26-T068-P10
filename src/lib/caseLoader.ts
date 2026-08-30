@@ -17,7 +17,7 @@
  */
 
 import type { Household, Recharge } from './data';
-import { addDays } from './dates';
+import { addDays, isValidDateString } from './dates';
 
 export interface CaseLoadResult {
   ok: boolean;
@@ -46,7 +46,10 @@ function toNumber(value: unknown, field: string, errors: string[]): number {
 }
 
 function isDateString(v: unknown): v is string {
-  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  // Shape AND real calendar date: a bare regex accepts "2026-02-30",
+  // which then silently rolls over to 2 March and shifts every
+  // subsequent consecutive-day check by a day.
+  return isValidDateString(v);
 }
 
 /**
@@ -100,8 +103,11 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
         }
       }
       const units = typeof day.units === 'number' ? day.units : NaN;
-      if (!Number.isFinite(units) || units < 0) {
-        errors.push(`days[${i}].units must be a number >= 0, got: ${JSON.stringify(day.units)}`);
+      // Readings are whole units per day per the published fixture
+      // format; a fractional reading means the file is not what it
+      // claims to be, so say so rather than quietly charging 2.5 units.
+      if (!Number.isInteger(units) || units < 0) {
+        errors.push(`days[${i}].units must be a whole number >= 0, got: ${JSON.stringify(day.units)}`);
       } else {
         dailyUnits.push(units);
       }
