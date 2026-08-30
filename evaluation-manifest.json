@@ -1,0 +1,77 @@
+{
+  "team_id": "LSH26-T###",
+  "problem_id": "P10",
+  "repository_name": "lsh26-t###-p10",
+  "live_url": "https://example.com",
+  "demo_video_url_optional": "",
+  "event_start_code": "<START-CODE>",
+  "repository_created_before_release": false,
+  "pre_event_materials": [],
+  "sample_data": {
+    "loads_published_fixture": true,
+    "method": "Both. The bundled sample household (case PUB-01 from P10_prepaid_meter_public.json) loads automatically on open, converted programmatically (not retyped by hand) into src/lib/data.ts. A different case in the same published fixture shape can also be supplied at runtime, either by choosing a .json file or by pasting the JSON text directly, in the 'Load a different case' panel at the top of the page.",
+    "reset_instructions": "Click 'Reset to sample data (PUB-01)' in the 'Load a different case' panel (only shown once a custom case has been loaded), or simply reload the page — no data is written back to any file or server, so a reload always returns to the bundled sample."
+  },
+  "problem_solving_method": "Rebuilt the tariff as a pure function that splits a day's units across slab boundaries by cumulative monthly units, keeping the slab counter and the recharge/fixed-charge logic as two independently-tracked pieces of state so the 'a recharge never resets the slab counter' rule (constraint in the problem statement) can't accidentally leak between them. Built the day-by-day ledger, the two forecast functions (run-out date, top-up-to-a-date), and the habit comparison as separate pure functions with no DOM/React dependency, so all of them could be unit-tested headlessly before any UI was built. Verified the full six-month ledger three independent ways before trusting it: the TypeScript engine, a from-scratch Python re-implementation of the same tariff, and a real-Chromium screenshot of the rendered chart. One real bug was found this way (see known_limitations / README) and fixed with a regression test.",
+  "requirements": {
+    "R1": {
+      "status": "complete",
+      "evidence": "src/lib/data.ts (bundled sample) and src/lib/caseLoader.ts + src/components/CaseLoaderCard.tsx (load any other case in the same shape). Sample case PUB-01 contains 181 consecutive daily readings (Jan-Jun 2026) including a light month (Jan/Feb), a heavy summer month (May/Jun), and a large recharge in the last week of a month (৳4,300 on 26 May) — visible on the 'Balance, rebuilt day by day' chart on first load."
+    },
+    "R2": {
+      "status": "complete",
+      "evidence": "src/lib/engine.ts: rebuildLedger(). Charges each day's units at the slab the month's running total has reached (splitting a day across a slab boundary when it crosses one), resets the counter on the 1st of each calendar month independent of recharges, takes demand charge + meter rent once on the first recharge of the month, adds 5% VAT to energy. Rendered as the balance line + recharge markers in src/components/BalanceChart.tsx (item 2's required chart)."
+    },
+    "R3": {
+      "status": "complete",
+      "evidence": "src/lib/engine.ts: forecastRunOut() and forecastTopUp(). Shown in 'The family's two questions' section — src/components/RunOutCard.tsx (run-out date) and src/components/TopUpCard.tsx (top-up amount, with an interactive date picker, broken into base energy / higher-slab premium / fixed charges / VAT)."
+    },
+    "R4": {
+      "status": "complete",
+      "evidence": "src/lib/engine.ts: simulateHabit() and runComparison(). Shown in 'Two recharge habits, same three months, same electricity use' — src/components/HabitComparisonCard.tsx. Both habits run on identical daily consumption and the same calendar-month slab counter per R-16; the sample case happens to produce an equal result for both habits, which R-16 explicitly allows and the UI states plainly rather than fabricating a difference."
+    },
+    "R5_bonus_slab_warning": {
+      "status": "complete",
+      "evidence": "src/components/SlabLadder.tsx — shows the current month's position on the slab ladder and warns when fewer than 30 units remain before the next slab, with the next slab's rate."
+    },
+    "R6_bonus_paste_recharge_history": {
+      "status": "complete",
+      "evidence": "src/lib/engine.ts: parsePastedHistory() and buildActualComparison(); UI in src/components/RechargeCompareCard.tsx ('Check against your real meter'). Accepts pasted lines of date, recharge_amount, actual_balance; rebuilds the ledger against the pasted recharge history when provided, and diffs any pasted actual-balance checkpoints against the rebuilt balance."
+    },
+    "R7_bonus_month_bill": {
+      "status": "complete",
+      "evidence": "src/components/MonthBillCard.tsx ('One month's bill, broken down') — any month in the loaded case's data, broken into units / energy / demand charge / meter rent / VAT / total, with a month picker."
+    }
+  },
+  "team_members": [
+    {
+      "registered_name": "<MEMBER NAME>",
+      "github_username": "<GITHUB USERNAME>",
+      "major_contribution": "Brief description of personal contribution",
+      "evidence_paths_or_commits": [
+        "src/example-file",
+        "<commit SHA if helpful>"
+      ]
+    }
+  ],
+  "major_design_decisions": [
+    "Kept all tariff/ledger/forecast/comparison logic in src/lib/ as pure functions with zero DOM or React dependency, so the domain math could be unit-tested headlessly and independently of the UI framework.",
+    "Made the household a piece of application state rather than a hardcoded constant, and added a case loader (file upload or paste), specifically so the app can be re-run against a judge's own hidden test case in the same fixture shape, not only the bundled sample.",
+    "Chose React + Vite + TypeScript + Tailwind + Recharts for the UI layer: a conventional, widely-understood stack with no backend, so the whole submission is a static site that can be deployed to any static host with no server to configure or fail.",
+    "Every numeric string in the fixture format (e.g. \"350.00\") is parsed and validated explicitly in src/lib/caseLoader.ts rather than assumed, so a malformed or unusual hidden test case produces a clear error message instead of a wrong number or a blank page."
+  ],
+  "known_limitations": [
+    "The 'check against your real meter' comparison tolerance for flagging a mismatch is a fixed ৳1 in the UI (src/components/RechargeCompareCard.tsx); it is not configurable.",
+    "No automated visual-regression test exercises the chart's exact pixel output; the chart's correctness was checked by inspecting rendered SVG path counts and real-Chromium screenshots during development, not by an automated pixel-diff test.",
+    "During development, an earlier version of forecastTopUp() checked whether a recharge happened strictly before 'today' in the same month (using '<') to decide whether a new hypothetical recharge would be the month's first; this missed a recharge landing exactly on 'today' itself. It was found, fixed ('<=' comparison), and covered by a named regression test in src/lib/engine.test.ts before this submission — it never affected the bundled sample case's displayed numbers, since that case's own first June recharge fell several days before 30 June."
+  ],
+  "ai_tools_used": [
+    {
+      "tool": "Claude (Anthropic)",
+      "used_for": "Writing the tariff/ledger/forecast/comparison logic in src/lib/, the React UI components in src/components/, the Vitest test suites, and the case-loading/paste-history features.",
+      "how_output_was_verified": "Every headline calculation (opening/closing balance, run-out date, top-up breakdown, habit-comparison totals) was cross-checked three independent ways: the shipped TypeScript engine, a from-scratch Python re-implementation of the same tariff rules written separately, and manual inspection of the rendered app in a real Chromium browser (not just unit tests) to confirm the displayed numbers matched. 57 automated tests (src/lib/*.test.ts) cover the tariff slab-splitting math, the monthly-reset and fixed-charge rules, the two forecasts, the habit comparison (including the R-16 equal-cost case), and the case loader's input validation; all 57 pass via `npm run test`."
+    }
+  ],
+  "licenses_file": "LICENSES.md",
+  "declaration": "The information above is complete and truthful to the best of the team's knowledge."
+}
