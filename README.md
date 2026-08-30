@@ -136,7 +136,7 @@ See [`LICENSES.md`](LICENSES.md) for third-party materials.
 
 | Registered member | GitHub username | Major contribution | Evidence |
 |---|---|---|---|
-| `Tonmoy Sarker Sourav` | `tonmoy-y` | `Build Core Logic2` | Push files |
+| `Tonmoy Sarker Sourav` | `tonmoy-y` | `Build Core Logic` | Push files |
 | `Tonmoy Shaha` | `tonmoy6052` | `Testing` | Find Edge Cases |
 | `Mohammad Muaz` | `mojo-vai` | `Testing` | Find Edge Cases |
 | `Fardin` | `iamfardinn` | `Testing` | Find Edge Cases |
