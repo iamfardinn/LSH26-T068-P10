@@ -22,6 +22,17 @@ export interface CaseLoadResult {
   ok: boolean;
   household?: Household;
   errors: string[];
+  /** Set when the uploaded/pasted JSON was the whole fixture file (an
+   *  object with a `cases` array) rather than one case — the caller
+   *  should ask the user which case to load, then call
+   *  `parseCaseObject()` again on that one entry. */
+  needsSelection?: boolean;
+  availableCases?: FixtureCaseSummary[];
+}
+
+export interface FixtureCaseSummary {
+  caseId: string;
+  raw: unknown;
 }
 
 function toNumber(value: unknown, field: string, errors: string[]): number {
@@ -165,7 +176,12 @@ export function parseCaseObject(raw: unknown): CaseLoadResult {
   return { ok: true, household, errors: [] };
 }
 
-/** Convenience wrapper: parses a raw JSON *string* (e.g. from a file or textarea). */
+/** Convenience wrapper: parses a raw JSON *string* (e.g. from a file or
+ *  textarea). Detects the two shapes a judge might reasonably supply:
+ *   - a single case object (the historical/expected shape), or
+ *   - the whole published fixture file — `{ ..., cases: [ ...many... ] }`
+ *     — in which case this returns `needsSelection: true` with every
+ *     case's id instead of guessing which one to load. */
 export function parseCaseJsonText(text: string): CaseLoadResult {
   let raw: unknown;
   try {
@@ -173,5 +189,21 @@ export function parseCaseJsonText(text: string): CaseLoadResult {
   } catch (e) {
     return { ok: false, errors: ['Could not parse as JSON: ' + (e as Error).message] };
   }
+
+  if (typeof raw === 'object' && raw !== null && Array.isArray((raw as Record<string, unknown>).cases)) {
+    const cases = (raw as Record<string, unknown>).cases as unknown[];
+    if (cases.length === 0) {
+      return { ok: false, errors: ['This fixture file\'s "cases" array is empty — nothing to load.'] };
+    }
+    const availableCases: FixtureCaseSummary[] = cases.map((c, i) => ({
+      caseId:
+        typeof c === 'object' && c !== null && typeof (c as Record<string, unknown>).case_id === 'string'
+          ? ((c as Record<string, unknown>).case_id as string)
+          : `case #${i + 1}`,
+      raw: c,
+    }));
+    return { ok: false, errors: [], needsSelection: true, availableCases };
+  }
+
   return parseCaseObject(raw);
 }

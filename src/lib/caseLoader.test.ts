@@ -98,4 +98,33 @@ describe('parseCaseJsonText', () => {
     expect(r.ok).toBe(false);
     expect(r.errors[0]).toMatch(/Could not parse as JSON/);
   });
+
+  it('detects the whole fixture file shape (a `cases` array) and asks for a selection instead of failing', () => {
+    const fixture = {
+      schema_version: '2.1',
+      problem_id: 'P10',
+      format_note: '...',
+      cases: [validCase({ case_id: 'PUB-01' }), validCase({ case_id: 'PUB-02' })],
+    };
+    const r = parseCaseJsonText(JSON.stringify(fixture));
+    expect(r.needsSelection).toBe(true);
+    expect(r.availableCases?.map((c) => c.caseId)).toEqual(['PUB-01', 'PUB-02']);
+    // and each entry, once picked, parses correctly on its own
+    const picked = parseCaseObject(r.availableCases![0].raw);
+    expect(picked.ok).toBe(true);
+    expect(picked.household?.caseId).toBe('PUB-01');
+  });
+
+  it('reports an empty `cases` array as an error rather than silently loading nothing', () => {
+    const r = parseCaseJsonText(JSON.stringify({ schema_version: '2.1', cases: [] }));
+    expect(r.ok).toBe(false);
+    expect(r.needsSelection).toBeUndefined();
+    expect(r.errors[0]).toMatch(/empty/);
+  });
+
+  it('falls back to a readable case index when a fixture entry has no case_id', () => {
+    const fixture = { cases: [validCase({ case_id: undefined })] };
+    const r = parseCaseJsonText(JSON.stringify(fixture));
+    expect(r.availableCases?.[0].caseId).toBe('case #1');
+  });
 });
