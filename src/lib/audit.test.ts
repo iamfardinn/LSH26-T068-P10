@@ -2,12 +2,11 @@
  * audit.test.ts — Comprehensive P10 QA audit test suite.
  */
 import { describe, it, expect } from 'vitest';
-import { energyForUnits, vatOn, FIXED_CHARGES, SLABS, VAT_RATE, DEMAND_CHARGE, METER_RENT } from './tariff';
+import { energyForUnits,  FIXED_CHARGES,  VAT_RATE, DEMAND_CHARGE, METER_RENT } from './tariff';
 import {
   rebuildLedger,
   forecastRunOut,
   forecastTopUp,
-  simulateHabit,
   runComparison,
   buildDayList,
 } from './engine';
