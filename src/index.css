@@ -23,3 +23,49 @@ body {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- Dark mode: overrides the neutral slate/white palette only.
+   Toggled via a `dark` class on <html> (see Header.tsx). Accent colors
+   (indigo/teal/rose/emerald chips and buttons) are left as-is since
+   they already read fine on a dark background. ---- */
+.dark body {
+  background-color: #0f172a; /* slate-900 */
+  color: #f1f5f9; /* slate-100 */
+}
+.dark .bg-slate-50 {
+  background-color: #0f172a;
+}
+.dark .bg-white,
+.dark .bg-white\/90 {
+  background-color: #1e293b; /* slate-800 */
+}
+.dark .bg-slate-100 {
+  background-color: #334155; /* slate-700 */
+}
+.dark .bg-slate-200 {
+  background-color: #475569; /* slate-600 */
+}
+.dark .border-slate-100 {
+  border-color: #334155;
+}
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: #334155;
+}
+.dark .text-slate-900 {
+  color: #f1f5f9;
+}
+.dark .text-slate-700 {
+  color: #cbd5e1; /* slate-300 */
+}
+.dark .text-slate-500 {
+  color: #94a3b8; /* slate-400 */
+}
+.dark .text-slate-400 {
+  color: #64748b; /* slate-500 */
+}
+
+/* Known minor limitation: the balance chart's grid lines and axis
+   ticks are set via inline SVG attributes in BalanceChart.tsx, not
+   CSS classes, so they keep their light-mode colors in dark mode.
+   Left as-is to keep this change small and self-contained. */

@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="Meter Sense — rebuilds a household's prepaid electricity balance day by day against the real slab tariff, forecasts run-out/top-up, and compares recharge habits." />
     <title>Meter Sense — Prepaid Recharge Advisor</title>
+    <script>
+      // Applied before React mounts so there's no flash of the wrong
+      // theme on load. Kept in sync with Header.tsx's toggle logic.
+      if (localStorage.getItem('meter-sense-theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
