@@ -4,8 +4,8 @@ Solution for **LofiStack Hackathon 2026 — P10**
 
 ## Project information
 
-- **Team:** `<TEAM NAME>` <!-- TODO -->
-- **Team ID:** `LSH26-T###` <!-- TODO -->
+- **Team:** `Unified` <!-- TODO -->
+- **Team ID:** `LSH26-T068` <!-- TODO -->
 - **Problem:** `P10 — Prepaid Meter Recharge Advisor`
 - **Live application:** <https://example.com> <!-- TODO: replace with the deployed URL -->
 - **Demo video:** Optional link, maximum three minutes <!-- TODO or delete this line if not supplied -->
