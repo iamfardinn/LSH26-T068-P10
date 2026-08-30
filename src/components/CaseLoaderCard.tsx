@@ -18,7 +18,7 @@ export function CaseLoaderCard({
   const [errors, setErrors] = useState<string[]>([]);
   const [loadedName, setLoadedName] = useState<string | null>(null);
   const [availableCases, setAvailableCases] = useState<FixtureCaseSummary[] | null>(null);
-  const [selectedCaseId, setSelectedCaseId] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function tryLoad(source: string, label: string | null) {
@@ -29,7 +29,7 @@ export function CaseLoaderCard({
       // — ask which one to load instead of guessing.
       setErrors([]);
       setAvailableCases(result.availableCases);
-      setSelectedCaseId(result.availableCases[0].caseId);
+      setSelectedIndex(0);
       setLoadedName(label);
       return;
     }
@@ -45,7 +45,11 @@ export function CaseLoaderCard({
   }
 
   function loadSelectedCase() {
-    const entry = availableCases?.find((c) => c.caseId === selectedCaseId);
+    // Indexed by array position, not case_id: two entries in the same
+    // fixture file can legitimately share a case_id (or have none at
+    // all), and selecting by that string would make the second one
+    // permanently unreachable.
+    const entry = availableCases?.[selectedIndex];
     if (!entry) return;
     const result = parseCaseObject(entry.raw);
     if (!result.ok || !result.household) {
@@ -118,15 +122,23 @@ export function CaseLoaderCard({
           </div>
           <div className="mt-2 flex flex-col gap-2 sm:flex-row">
             <select
-              value={selectedCaseId}
-              onChange={(e) => setSelectedCaseId(e.target.value)}
+              value={selectedIndex}
+              onChange={(e) => setSelectedIndex(Number(e.target.value))}
               className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none ring-indigo-500 focus:ring-2"
             >
-              {availableCases.map((c) => (
-                <option key={c.caseId} value={c.caseId}>
-                  {c.caseId}
-                </option>
-              ))}
+              {availableCases.map((c, i) => {
+                // If two entries share a case_id (or both fell back to
+                // the same "case #N" placeholder), show the position too
+                // so the two are visually distinguishable, not just
+                // mechanically selectable.
+                const isDuplicateLabel = availableCases.filter((o) => o.caseId === c.caseId).length > 1;
+                return (
+                  <option key={i} value={i}>
+                    {c.caseId}
+                    {isDuplicateLabel ? ` (entry ${i + 1} of ${availableCases.length})` : ''}
+                  </option>
+                );
+              })}
             </select>
             <button
               type="button"
